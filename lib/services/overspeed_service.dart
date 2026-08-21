@@ -84,7 +84,7 @@ class OverspeedService {
       return false;
     }
 
-    const androidSettings = AndroidSettings(
+    final androidSettings = AndroidSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 0,
       intervalDuration: Duration(seconds: 3),
