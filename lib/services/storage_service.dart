@@ -1,0 +1,148 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Wraps secure storage (for the Claude API key) and SharedPreferences
+/// (for plain settings) behind one small API.
+class StorageService {
+  StorageService._();
+  static final StorageService instance = StorageService._();
+
+  final _secure = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+
+  static const _keyApiKey = 'anthropic_api_key';
+  static const _keyModel = 'claude_model';
+  static const _keyWakeWord = 'wake_word_enabled';
+  static const _keySpeakReplies = 'speak_replies_enabled';
+  static const _keySystemPrompt = 'jarvis_system_prompt';
+  static const _keyOverspeedEnabled = 'overspeed_enabled';
+  static const _keySpeedLimitKmh = 'overspeed_limit_kmh';
+  static const _keyServerUrl = 'jarvis_server_url';
+  static const _keyServerToken = 'jarvis_server_token';
+  static const _keyServerConversationId = 'jarvis_server_conversation_id';
+
+  static const defaultModel = 'claude-sonnet-4-5-20250929';
+
+  static const defaultSystemPrompt =
+      'You are JARVIS, a witty, concise, and unflappable personal AI '
+      'assistant running on the user\'s phone. Keep spoken replies short '
+      '(1-3 sentences) unless the user asks for detail. You can be asked '
+      'to open apps, set alarms, or place calls/texts — when the user asks '
+      'for one of those, respond naturally confirming the action; the app '
+      'itself performs it separately from your reply.';
+
+  Future<String?> getApiKey() => _secure.read(key: _keyApiKey);
+
+  Future<void> setApiKey(String value) =>
+      _secure.write(key: _keyApiKey, value: value.trim());
+
+  Future<void> clearApiKey() => _secure.delete(key: _keyApiKey);
+
+  Future<String> getModel() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyModel) ?? defaultModel;
+  }
+
+  Future<void> setModel(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyModel, value);
+  }
+
+  Future<bool> getWakeWordEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyWakeWord) ?? false;
+  }
+
+  Future<void> setWakeWordEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyWakeWord, value);
+  }
+
+  Future<bool> getSpeakReplies() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keySpeakReplies) ?? true;
+  }
+
+  Future<void> setSpeakReplies(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keySpeakReplies, value);
+  }
+
+  Future<String> getSystemPrompt() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keySystemPrompt) ?? defaultSystemPrompt;
+  }
+
+  Future<void> setSystemPrompt(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keySystemPrompt, value);
+  }
+
+  Future<bool> getOverspeedEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyOverspeedEnabled) ?? false;
+  }
+
+  Future<void> setOverspeedEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOverspeedEnabled, value);
+  }
+
+  /// Speed limit in km/h that triggers the overspeed alarm.
+  Future<double> getSpeedLimitKmh() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_keySpeedLimitKmh) ?? 80.0;
+  }
+
+  Future<void> setSpeedLimitKmh(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keySpeedLimitKmh, value);
+  }
+
+  // --- Private (self-hosted) server, for persistent memory ---
+  // When both of these are set, chat is routed through your own server
+  // (which stores conversation/preference/document memory) instead of
+  // calling Claude directly from the phone. See jarvis_server/README.md.
+
+  Future<String?> getServerUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyServerUrl);
+    if (raw == null || raw.trim().isEmpty) return null;
+    // Strip a trailing slash so callers can safely do '$base/chat'.
+    return raw.trim().replaceFirst(RegExp(r'/+$'), '');
+  }
+
+  Future<void> setServerUrl(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyServerUrl, value.trim());
+  }
+
+  Future<String?> getServerToken() => _secure.read(key: _keyServerToken);
+
+  Future<void> setServerToken(String value) =>
+      _secure.write(key: _keyServerToken, value: value.trim());
+
+  Future<bool> isServerConfigured() async {
+    final url = await getServerUrl();
+    final token = await getServerToken();
+    return url != null && url.isNotEmpty && token != null && token.isNotEmpty;
+  }
+
+  /// The active conversation id on the private server, so history
+  /// continues across app restarts instead of starting a fresh
+  /// conversation every launch. Null means "start a new one."
+  Future<String?> getServerConversationId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyServerConversationId);
+  }
+
+  Future<void> setServerConversationId(String? value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value == null) {
+      await prefs.remove(_keyServerConversationId);
+    } else {
+      await prefs.setString(_keyServerConversationId, value);
+    }
+  }
+}

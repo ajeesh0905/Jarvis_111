@@ -1,0 +1,48 @@
+name: jarvis_assistant
+description: "A JARVIS-like voice AI assistant powered by Claude."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Networking (Claude API)
+  http: ^1.2.2
+
+  # Voice: speech-to-text and text-to-speech
+  speech_to_text: ^7.0.0
+  flutter_tts: ^4.2.0
+
+  # Secure storage for the user's API key
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+
+  # Runtime permissions (mic, phone, etc.)
+  permission_handler: ^11.3.1
+
+  # Device control (open apps, set alarms, dial, sms) via Android intents
+  android_intent_plus: ^5.2.0
+  url_launcher: ^6.3.1
+
+  # Overspeed alarm: GPS speed tracking + alert notification/vibration
+  geolocator: ^13.0.1
+  flutter_local_notifications: ^18.0.1
+  vibration: ^2.0.1
+
+  # State/UI helpers
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/

@@ -1,0 +1,52 @@
+name: Build Jarvis APK
+
+# Builds a release APK on every push to main and lets you trigger it
+# manually from the Actions tab. GitHub's runners have full internet
+# access, so this is where the actual Android SDK / Flutter engine
+# download happens (that's blocked from some sandboxes, which is why
+# this project ships as source + this workflow rather than a prebuilt
+# binary).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Make sure the Gradle wrapper can run
+        run: chmod +x android/gradlew
+
+      - name: Opt out of AGP 9's new DSL globally
+        run: |
+          mkdir -p ~/.gradle
+          echo "android.newDsl=false" >> ~/.gradle/gradle.properties
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jarvis-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
