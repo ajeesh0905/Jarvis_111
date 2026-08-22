@@ -125,16 +125,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Claude API key',
+            'Gemini API key',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 6),
           Text(
             _hasStoredKey
                 ? 'A key is currently saved on this device (encrypted storage).'
-                : 'Paste your Anthropic API key below. Get one at '
-                    'console.anthropic.com — it is stored only on this '
-                    'phone and sent directly to Anthropic, never to any '
+                : 'Paste your Google Gemini API key below. Get a free one at '
+                    'aistudio.google.com/apikey — it is stored only on this '
+                    'phone and sent directly to Google, never to any '
                     'server of ours.',
             style: const TextStyle(color: JarvisColors.textSecondary, fontSize: 12),
           ),
@@ -143,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             controller: _apiKeyController,
             obscureText: _obscureKey,
             decoration: InputDecoration(
-              hintText: 'sk-ant-...',
+              hintText: 'AIza...',
               suffixIcon: IconButton(
                 icon: Icon(_obscureKey ? Icons.visibility_off : Icons.visibility),
                 onPressed: () => setState(() => _obscureKey = !_obscureKey),
@@ -160,7 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'Point Jarvis at your self-hosted server (see jarvis_server/) '
             'to get persistent memory — conversation history, preferences/'
             'goals, and documents — instead of the API key above talking '
-            'to Claude directly. When both fields below are filled in, '
+            'to Gemini directly. When both fields below are filled in, '
             'this takes over and the API key field is unused.',
             style: TextStyle(color: JarvisColors.textSecondary, fontSize: 12),
           ),

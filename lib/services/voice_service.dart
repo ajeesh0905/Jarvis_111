@@ -48,11 +48,28 @@ class VoiceService {
         }
       },
       onError: (e) {
-        _setState(VoiceState.error);
+        // The recognizer fires onError constantly during normal use —
+        // e.g. "error_no_match" / "error_speech_timeout" every time a
+        // listen window ends without hearing anything, which happens on
+        // essentially every wake-loop cycle. Those are expected and not
+        // a real problem, so only surface a "Mic error" for errors the
+        // plugin itself flags as permanent (e.g. missing recognizer,
+        // permission revoked) — transient ones just drop back to idle
+        // so the badge doesn't get stuck showing an error forever.
+        if (e.permanent) {
+          _setState(VoiceState.error);
+        } else if (_state == VoiceState.listening ||
+            _state == VoiceState.wakeListening) {
+          _setState(VoiceState.idle);
+        }
       },
     );
     await _tts.setSpeechRate(0.5);
     await _tts.setPitch(1.0);
+    if (_sttReady && _state == VoiceState.error) {
+      // Recovered — clear any stale error state from a previous session.
+      _setState(VoiceState.idle);
+    }
     return _sttReady;
   }
 
@@ -138,7 +155,7 @@ class VoiceService {
       if (woke && _wakeLoopActive) {
         onWake();
         // Let the resulting conversation turn (tap-to-talk style listen +
-        // Claude reply + TTS) play out before resuming wake listening.
+        // Gemini reply + TTS) play out before resuming wake listening.
         await Future.delayed(const Duration(milliseconds: 500));
       } else {
         await Future.delayed(const Duration(milliseconds: 400));

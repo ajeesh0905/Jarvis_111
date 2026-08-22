@@ -13,7 +13,7 @@ class DeviceActionResult {
 /// Very small on-device "skills" layer: looks for simple command patterns
 /// like "open spotify" / "set an alarm for 7am" / "call mom" and performs
 /// them via Android intents. This runs entirely on-device — it does not
-/// go through Claude, so it works even without an API key, and Claude is
+/// go through Gemini, so it works even without an API key, and Gemini is
 /// never told your alarms/contacts.
 ///
 /// Extend [_appPackages] with any app package name you want JARVIS to be
@@ -36,7 +36,7 @@ class DeviceControlService {
 
   /// Tries to interpret [text] as a device command. Returns
   /// handled: false if it doesn't look like one of the supported
-  /// commands, so the caller can fall back to sending it to Claude.
+  /// commands, so the caller can fall back to sending it to Gemini.
   Future<DeviceActionResult> tryHandle(String text) async {
     final t = text.toLowerCase().trim();
 
@@ -80,13 +80,49 @@ class DeviceControlService {
     try {
       final intent = AndroidIntent(
         action: 'action_main',
+        category: 'android.intent.category.LAUNCHER',
         package: pkg,
         flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
       );
       await intent.launch();
       return DeviceActionResult(true, 'Opening $appName.');
     } catch (e) {
-      return DeviceActionResult(true, "I couldn't open $appName: $e");
+      // Most commonly this means the app just isn't installed on this
+      // phone (Android can't find any activity to hand the intent to) —
+      // rather than surface a raw stack trace, offer to open its Play
+      // Store listing instead.
+      try {
+        final storeIntent = AndroidIntent(
+          action: 'action_view',
+          data: 'market://details?id=$pkg',
+        );
+        await storeIntent.launch();
+        return DeviceActionResult(
+          true,
+          "$appName doesn't seem to be installed — opening its Play Store "
+          "page so you can install it.",
+        );
+      } catch (_) {
+        final uri = Uri.parse(
+          'https://play.google.com/store/apps/details?id=$pkg',
+        );
+        final opened = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (opened) {
+          return DeviceActionResult(
+            true,
+            "$appName doesn't seem to be installed — opening its Play "
+            "Store page so you can install it.",
+          );
+        }
+        return DeviceActionResult(
+          true,
+          "I couldn't open $appName — it doesn't seem to be installed on "
+          "this phone.",
+        );
+      }
     }
   }
 

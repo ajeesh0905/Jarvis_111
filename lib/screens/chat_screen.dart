@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
-import '../services/claude_service.dart';
+import '../services/gemini_service.dart';
 import '../services/device_control_service.dart';
 import '../services/jarvis_server_service.dart';
 import '../services/overspeed_service.dart';
@@ -25,7 +25,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
 
-  final _claude = ClaudeService();
+  final _gemini = GeminiService();
   final _server = JarvisServerService();
   final _voice = VoiceService();
   final _deviceControl = DeviceControlService();
@@ -132,8 +132,8 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // 3. Fall back to Claude (with memory) via your private server, or
-    // straight to Claude if no server is configured.
+    // 3. Fall back to Gemini (with memory) via your private server, or
+    // straight to Gemini if no server is configured.
     if (_usingServer) {
       try {
         final result = await _server.chat(text, conversationId: _serverConversationId);
@@ -156,13 +156,13 @@ class _ChatScreenState extends State<ChatScreen> {
       final relevant = _messages.where((m) => m.sender != Sender.system).toList();
       final priorTurns = relevant.length > 1 ? relevant.sublist(0, relevant.length - 1) : <ChatMessage>[];
       final history = priorTurns
-          .map((m) => ClaudeTurn(m.sender == Sender.user ? 'user' : 'assistant', m.text))
+          .map((m) => GeminiTurn(m.sender == Sender.user ? 'user' : 'model', m.text))
           .toList();
       // Keep only the last ~10 turns so requests stay small.
       final trimmedHistory = history.length > 10 ? history.sublist(history.length - 10) : history;
-      final reply = await _claude.send(userMessage: text, history: trimmedHistory);
+      final reply = await _gemini.send(userMessage: text, history: trimmedHistory);
       await _respond(reply);
-    } on ClaudeException catch (e) {
+    } on GeminiException catch (e) {
       await _respond(e.toString(), isError: true);
     } catch (e) {
       await _respond('Something went wrong: $e', isError: true);

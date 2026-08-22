@@ -56,7 +56,7 @@ class DocumentSearchHit {
 }
 
 /// Talks to your self-hosted Jarvis Personal Server (see
-/// jarvis_server/README.md) instead of calling Claude directly. Only
+/// jarvis_server/README.md) instead of calling Gemini directly. Only
 /// used once Settings has both a server URL and token configured.
 class JarvisServerService {
   Future<Map<String, String>> _headers() async {

@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Wraps secure storage (for the Claude API key) and SharedPreferences
+/// Wraps secure storage (for the Gemini API key) and SharedPreferences
 /// (for plain settings) behind one small API.
 class StorageService {
   StorageService._();
@@ -11,8 +11,8 @@ class StorageService {
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
-  static const _keyApiKey = 'anthropic_api_key';
-  static const _keyModel = 'claude_model';
+  static const _keyApiKey = 'gemini_api_key';
+  static const _keyModel = 'gemini_model';
   static const _keyWakeWord = 'wake_word_enabled';
   static const _keySpeakReplies = 'speak_replies_enabled';
   static const _keySystemPrompt = 'jarvis_system_prompt';
@@ -22,7 +22,7 @@ class StorageService {
   static const _keyServerToken = 'jarvis_server_token';
   static const _keyServerConversationId = 'jarvis_server_conversation_id';
 
-  static const defaultModel = 'claude-sonnet-4-5-20250929';
+  static const defaultModel = 'gemini-2.5-flash';
 
   static const defaultSystemPrompt =
       'You are JARVIS, a witty, concise, and unflappable personal AI '
@@ -103,7 +103,7 @@ class StorageService {
   // --- Private (self-hosted) server, for persistent memory ---
   // When both of these are set, chat is routed through your own server
   // (which stores conversation/preference/document memory) instead of
-  // calling Claude directly from the phone. See jarvis_server/README.md.
+  // calling Gemini directly from the phone. See jarvis_server/README.md.
 
   Future<String?> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
