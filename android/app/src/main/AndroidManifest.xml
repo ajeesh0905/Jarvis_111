@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Network access for the Claude API -->
+    <!-- Network access for the Gemini API -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -29,6 +29,13 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+        <!-- Health Connect: read step/heart-rate/sleep data (e.g. synced from
+    the Zepp app / an Amazfit watch) for the in-app health overview -->
+        <uses-permission android:name="android.permission.health.READ_STEPS" />
+        <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+        <uses-permission android:name="android.permission.health.READ_SLEEP" />
+        <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
     <application
         android:label="Jarvis"
         android:name="${applicationName}"
@@ -52,6 +59,19 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+                <!-- Lets Android show "why does Jarvis want this?" for Health
+        Connect permissions, pointing back at our one Activity. -->
+                <activity-alias
+                                android:name="ViewPermissionUsageActivity"
+                                android:exported="true"
+                                android:targetActivity=".MainActivity"
+                                android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+                                <intent-filter>
+                                                    <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                                                    <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+                                </intent-filter>
+                </activity-alias>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
@@ -79,5 +99,11 @@
         <intent>
             <action android:name="android.intent.action.SET_TIMER" />
         </intent>
+                <!-- Health Connect: check it's installed, and let it show its
+        permissions-rationale screen -->
+                <package android:name="com.google.android.apps.healthdata" />
+                <intent>
+                                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+                </intent>
     </queries>
 </manifest>
