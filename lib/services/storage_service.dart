@@ -22,7 +22,7 @@ class StorageService {
   static const _keyServerToken = 'jarvis_server_token';
   static const _keyServerConversationId = 'jarvis_server_conversation_id';
 
-  static const defaultModel = 'gemini-2.5-flash';
+  static const defaultModel = 'gemini-3.6-flash';
 
   static const defaultSystemPrompt =
       'You are JARVIS, a witty, concise, and unflappable personal AI '
