@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../services/gemini_service.dart';
 import '../services/device_control_service.dart';
+import '../services/health_service.dart';
 import '../services/jarvis_server_service.dart';
 import '../services/overspeed_service.dart';
 import '../services/smart_home_service.dart';
@@ -10,6 +11,7 @@ import '../services/voice_service.dart';
 import '../theme.dart';
 import '../widgets/chat_bubble.dart';
 import 'documents_screen.dart';
+import 'health_screen.dart';
 import 'memory_screen.dart';
 import 'settings_screen.dart';
 
@@ -31,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _deviceControl = DeviceControlService();
   final _overspeed = OverspeedService();
   final SmartHomeService _smartHome = NoOpSmartHomeService();
+    final _health = HealthService.instance;
 
   bool _sending = false;
   bool _speakReplies = true;
@@ -132,7 +135,15 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // 3. Fall back to Gemini (with memory) via your private server, or
+    // 3. Try it as a health/fitness check-in (steps, heart rate, sleep)
+    answered straight from Health Connect — no LLM round trip needed.
+      final healthReply = await _health.tryHandle(text);
+    if (healthReply != null) {
+      await _respond(healthReply);
+      return;
+    }
+    
+    // 4. Fall back to Gemini (with memory) via your private server, or
     // straight to Gemini if no server is configured.
     if (_usingServer) {
       try {
@@ -294,6 +305,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         : JarvisColors.textSecondary,
                   ),
                 ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.monitor_heart_outlined),
+            tooltip: 'Health',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HealthScreen()),
               ),
             ),
           IconButton(
