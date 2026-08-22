@@ -39,7 +39,7 @@ dependencies:
 
   # Health Connect: read step/heart-rate/sleep data (e.g. synced from the
       # Zepp app / an Amazfit watch) for the in-app health overview
-  health: ^13.3.2
+  health: ^13.1.4
 
 dev_dependencies:
   flutter_test:
