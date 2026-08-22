@@ -106,9 +106,9 @@ class HealthService {
     DateTime? heartRateAt;
     try {
       final hrPoints = await _health.getHealthDataFromTypes(
-        now.subtract(const Duration(hours: 24)),
-        now,
-        [HealthDataType.HEART_RATE],
+        startTime: now.subtract(const Duration(hours: 24)),
+        endTime: now,
+        types: [HealthDataType.HEART_RATE],
         );
       if (hrPoints.isNotEmpty) {
         hrPoints.sort((a, b) => a.dateTo.compareTo(b.dateTo));
@@ -124,9 +124,9 @@ class HealthService {
       // yesterday evening.
       final sleepWindowStart = midnight.subtract(const Duration(hours: 18));
       final sleepPoints = await _health.getHealthDataFromTypes(
-        sleepWindowStart,
-        now,
-        [HealthDataType.SLEEP_ASLEEP],
+        startTime: sleepWindowStart,
+        endTime: now,
+        types: [HealthDataType.SLEEP_ASLEEP],
         );
       if (sleepPoints.isNotEmpty) {
         sleep = sleepPoints.fold<Duration>(
