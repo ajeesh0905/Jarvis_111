@@ -1,5 +1,5 @@
 name: jarvis_assistant
-description: "A JARVIS-like voice AI assistant powered by Claude."
+description: "A JARVIS-like voice AI assistant powered by Gemini."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -36,6 +36,10 @@ dependencies:
 
   # State/UI helpers
   provider: ^6.1.2
+
+  # Health Connect: read step/heart-rate/sleep data (e.g. synced from the
+      # Zepp app / an Amazfit watch) for the in-app health overview
+  health: ^13.3.2
 
 dev_dependencies:
   flutter_test:
