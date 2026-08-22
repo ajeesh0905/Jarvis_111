@@ -136,7 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     // 3. Try it as a health/fitness check-in (steps, heart rate, sleep)
-    answered straight from Health Connect — no LLM round trip needed.
+    // answered straight from Health Connect - no LLM round trip needed.
       final healthReply = await _health.tryHandle(text);
     if (healthReply != null) {
       await _respond(healthReply);
