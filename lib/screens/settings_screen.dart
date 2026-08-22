@@ -26,6 +26,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loading = true;
   bool _testingConnection = false;
 
+    static const _customModelValue = '__custom__';
+    String _selectedModel = StorageService.defaultModel;
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +60,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _hasStoredKey = key != null && key.isNotEmpty;
       _apiKeyController.text = key ?? '';
-      _modelController.text = model;
+      if (StorageService.availableModels.contains(model)) {
+                _selectedModel = model;
+                _modelController.text = '';
+      } else {
+                _selectedModel = _customModelValue;
+                _modelController.text = model;
+      }
       _systemPromptController.text = prompt;
       _wakeWordEnabled = wake;
       _speakReplies = speak;
@@ -91,9 +100,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_apiKeyController.text.trim().isNotEmpty) {
       await storage.setApiKey(_apiKeyController.text.trim());
     }
-    await storage.setModel(
-      _modelController.text.trim().isEmpty ? StorageService.defaultModel : _modelController.text.trim(),
-    );
+    final customModel = _modelController.text.trim();
+        await storage.setModel(
+                _selectedModel == _customModelValue
+                    ? (customModel.isEmpty ? StorageService.defaultModel : customModel)
+                    : _selectedModel,
+              );
     await storage.setSystemPrompt(
       _systemPromptController.text.trim().isEmpty
           ? StorageService.defaultSystemPrompt
@@ -193,10 +205,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
           const SizedBox(height: 6),
-          TextField(
-            controller: _modelController,
-            decoration: const InputDecoration(hintText: StorageService.defaultModel),
-          ),
+          const Text(
+                        'Google occasionally retires older models - if replies start '
+                        'failing with a 404 mentioning the model name, switch to a '
+                        'newer one here.',
+                        style: TextStyle(color: JarvisColors.textSecondary, fontSize: 12),
+                      ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                                  initialValue: _selectedModel,
+                                  items: [
+                                                  ...StorageService.availableModels.map(
+                                                                    (m) => DropdownMenuItem(value: m, child: Text(m)),
+                                                                  ),
+                                                  const DropdownMenuItem(
+                                                                    value: _customModelValue,
+                                                                    child: Text('Custom...'),
+                                                                  ),
+                                                ],
+                                  onChanged: (v) {
+                                                  if (v != null) setState(() => _selectedModel = v);
+                                  },
+                                ),
+                    if (_selectedModel == _customModelValue) ...[
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                                  controller: _modelController,
+                                                  decoration: const InputDecoration(hintText: StorageService.defaultModel),
+                                                ),
+                                ],
           const SizedBox(height: 24),
           const Text(
             'Personality / system prompt',
