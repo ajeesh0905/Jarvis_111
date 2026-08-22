@@ -23,6 +23,13 @@ class StorageService {
   static const _keyServerConversationId = 'jarvis_server_conversation_id';
 
   static const defaultModel = 'gemini-3.6-flash';
+  static const availableModels = [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-2.5-pro',
+      ];
 
   static const defaultSystemPrompt =
       'You are JARVIS, a witty, concise, and unflappable personal AI '
