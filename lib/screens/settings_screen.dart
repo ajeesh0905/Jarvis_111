@@ -22,6 +22,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _wakeWordEnabled = false;
   bool _speakReplies = true;
   bool _overspeedEnabled = false;
+  bool _dailySummaryEnabled = false;
+  TimeOfDay _dailySummaryTime = const TimeOfDay(hour: 8, minute: 0);
   bool _hasStoredKey = false;
   bool _loading = true;
   bool _testingConnection = false;
@@ -57,6 +59,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final speedLimit = await storage.getSpeedLimitKmh();
     final serverUrl = await storage.getServerUrl();
     final serverToken = await storage.getServerToken();
+    final dailySummaryEnabled = await storage.getDailySummaryEnabled();
+    final dailySummaryHour = await storage.getDailySummaryHour();
+    final dailySummaryMinute = await storage.getDailySummaryMinute();
     setState(() {
       _hasStoredKey = key != null && key.isNotEmpty;
       _apiKeyController.text = key ?? '';
@@ -74,6 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _speedLimitController.text = speedLimit.round().toString();
       _serverUrlController.text = serverUrl ?? '';
       _serverTokenController.text = serverToken ?? '';
+      _dailySummaryEnabled = dailySummaryEnabled;
+      _dailySummaryTime = TimeOfDay(hour: dailySummaryHour, minute: dailySummaryMinute);
       _loading = false;
     });
   }
@@ -118,6 +125,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await storage.setSpeedLimitKmh(parsedLimit != null && parsedLimit > 0 ? parsedLimit : 80.0);
     await storage.setServerUrl(_serverUrlController.text.trim());
     await storage.setServerToken(_serverTokenController.text.trim());
+    await storage.setDailySummaryEnabled(_dailySummaryEnabled);
+    await storage.setDailySummaryTime(_dailySummaryTime.hour, _dailySummaryTime.minute);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Settings saved.')),
@@ -294,6 +303,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          const Text(
+            'Daily health summary',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+          const SizedBox(height: 6),
+          const Text(
+            'The next time you open Jarvis after this time each day, it will '
+            'show (and optionally speak) a summary of your steps, heart rate, '
+            'and sleep from Health Connect. Not a background alert - it only '
+            'fires when you open the app.',
+            style: TextStyle(fontSize: 12, color: JarvisColors.textSecondary),
+            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Enable daily health summary'),
+            value: _dailySummaryEnabled,
+            onChanged: (v) => setState(() => _dailySummaryEnabled = v),
+            ),
+          if (_dailySummaryEnabled) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: _dailySummaryTime,
+                  );
+                if (picked != null) setState(() => _dailySummaryTime = picked);
+              },
+              child: Text('Show after ${_dailySummaryTime.format(context)}'),
+              ),
+            ],
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _save,
