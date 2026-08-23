@@ -210,4 +210,32 @@ class HealthService {
       : '${parts.sublist(0, parts.length - 1).join(', ')}, and ${parts.last}';
     return '${joined[0].toUpperCase()}${joined.substring(1)}.';
   }
+
+  /// Builds a one-off daily digest message, or null if Health Connect
+  /// is not available/permitted or there is no data yet. Used by the
+  /// daily health summary feature - unlike [tryHandle], this always
+  /// returns a full steps/heart-rate/sleep digest rather than answering
+  /// a specific question.
+  Future<String?> buildDailySummaryMessage() async {
+    final availability = await checkAvailability();
+    if (availability != HealthConnectAvailability.available) return null;
+    if (!await hasPermissions()) return null;
+
+    final summary = await getSummary();
+    if (summary.isEmpty) return null;
+
+    final parts = <String>[];
+    parts.add(summary.steps != null
+              ? "${summary.steps} steps so far today"
+              : "no step count yet today");
+    parts.add(summary.heartRateBpm != null
+              ? "last heart rate reading ${summary.heartRateBpm!.round()} bpm"
+              : "no recent heart rate reading");
+    final sleep = summary.sleepLastNight;
+    parts.add(sleep != null && sleep.inMinutes > 0
+              ? "${sleep.inHours}h ${sleep.inMinutes % 60}m of sleep last night"
+              : "no sleep data for last night");
+
+    return "Here's your daily health summary: ${parts.join(', ')}.";
+  }
 }
