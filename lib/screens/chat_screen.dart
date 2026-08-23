@@ -82,7 +82,34 @@ class _ChatScreenState extends State<ChatScreen> {
         );
       }
     }
+    await _maybeShowDailyHealthSummary();
     if (mounted) setState(() {});
+  }
+
+  /// Shows (and optionally speaks) a one-off daily steps/heart-rate/sleep
+  /// digest, at most once per day, once the configured time of day has
+  /// passed. Not a true background alarm - it only fires when the app is
+  /// opened, next time after that time each day.
+  Future<void> _maybeShowDailyHealthSummary() async {
+    final storage = StorageService.instance;
+    final enabled = await storage.getDailySummaryEnabled();
+    if (!enabled) return;
+
+    final now = DateTime.now();
+    final hour = await storage.getDailySummaryHour();
+    final minute = await storage.getDailySummaryMinute();
+    final afterTime = now.hour > hour || (now.hour == hour && now.minute >= minute);
+    if (!afterTime) return;
+
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final lastShown = await storage.getDailySummaryLastShown();
+    if (lastShown == today) return;
+
+    final message = await _health.buildDailySummaryMessage();
+    if (message == null || !mounted) return;
+
+    await storage.setDailySummaryLastShown(today);
+    await _respond(message);
   }
 
   void _onWakeWordHeard() {
