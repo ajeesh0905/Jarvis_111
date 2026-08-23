@@ -21,6 +21,10 @@ class StorageService {
   static const _keyServerUrl = 'jarvis_server_url';
   static const _keyServerToken = 'jarvis_server_token';
   static const _keyServerConversationId = 'jarvis_server_conversation_id';
+  static const _keyDailySummaryEnabled = 'daily_summary_enabled';
+  static const _keyDailySummaryHour = 'daily_summary_hour';
+  static const _keyDailySummaryMinute = 'daily_summary_minute';
+  static const _keyDailySummaryLastShown = 'daily_summary_last_shown';
 
   static const defaultModel = 'gemini-3.6-flash';
   static const availableModels = [
@@ -151,5 +155,47 @@ class StorageService {
     } else {
       await prefs.setString(_keyServerConversationId, value);
     }
+  }
+
+  // --- Daily health summary ---
+  // Each day, after the chosen time, Jarvis shows (and optionally speaks)
+  // a one-time digest of steps/heart rate/sleep from Health Connect the
+  // next time the app is opened. Not a true background alarm - it fires
+  // on app launch, gated by a last-shown date so it only shows once a day.
+
+  Future<bool> getDailySummaryEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyDailySummaryEnabled) ?? false;
+  }
+
+  Future<void> setDailySummaryEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyDailySummaryEnabled, value);
+  }
+
+  Future<int> getDailySummaryHour() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyDailySummaryHour) ?? 8;
+  }
+
+  Future<int> getDailySummaryMinute() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyDailySummaryMinute) ?? 0;
+  }
+
+  Future<void> setDailySummaryTime(int hour, int minute) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyDailySummaryHour, hour);
+    await prefs.setInt(_keyDailySummaryMinute, minute);
+  }
+
+  Future<String?> getDailySummaryLastShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyDailySummaryLastShown);
+  }
+
+  Future<void> setDailySummaryLastShown(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyDailySummaryLastShown, value);
   }
 }
