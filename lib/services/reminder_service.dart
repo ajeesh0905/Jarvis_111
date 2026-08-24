@@ -124,7 +124,6 @@ class ReminderService {
         ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: recurringDaily ? DateTimeComponents.time : null,
       );
     final reminder = Reminder(
