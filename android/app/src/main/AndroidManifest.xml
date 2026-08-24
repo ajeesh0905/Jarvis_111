@@ -29,6 +29,11 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Reminders: exact scheduled notifications ("remind me...") that
+         still fire after a reboot -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
         <!-- Health Connect: read step/heart-rate/sleep data (e.g. synced from
     the Zepp app / an Amazfit watch) for the in-app health overview -->
         <uses-permission android:name="android.permission.health.READ_STEPS" />
@@ -75,6 +80,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Reminders: lets flutter_local_notifications re-schedule exact
+             alarms after a device reboot, and receive the alarm firings. -->
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Allow the app to query/launch other installed apps (Android 11+) -->
@@ -106,4 +124,4 @@
                                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
                 </intent>
     </queries>
-</manifest>
+</manifest
