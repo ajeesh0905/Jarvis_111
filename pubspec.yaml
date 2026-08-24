@@ -43,7 +43,6 @@ dependencies:
 
   # Reminders: schedule real on-device notifications ("remind me...")
   timezone: ^0.9.4
-  flutter_timezone: ^2.1.0
 
 dev_dependencies:
   flutter_test:
