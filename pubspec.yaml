@@ -41,6 +41,10 @@ dependencies:
       # Zepp app / an Amazfit watch) for the in-app health overview
   health: ^13.1.4
 
+  # Reminders: schedule real on-device notifications ("remind me...")
+  timezone: ^0.9.4
+  flutter_timezone: ^2.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
