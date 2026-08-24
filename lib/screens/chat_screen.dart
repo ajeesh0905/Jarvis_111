@@ -5,6 +5,7 @@ import '../services/device_control_service.dart';
 import '../services/health_service.dart';
 import '../services/jarvis_server_service.dart';
 import '../services/overspeed_service.dart';
+import '../services/reminder_service.dart';
 import '../services/smart_home_service.dart';
 import '../services/storage_service.dart';
 import '../services/voice_service.dart';
@@ -34,6 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _overspeed = OverspeedService();
   final SmartHomeService _smartHome = NoOpSmartHomeService();
     final _health = HealthService.instance;
+  final _reminders = ReminderService.instance;
 
   bool _sending = false;
   bool _speakReplies = true;
@@ -170,7 +172,15 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     
-    // 4. Fall back to Gemini (with memory) via your private server, or
+    // 4. Try it as a reminder command ("remind me...", "list reminders",
+    // "cancel reminder #N" / "cancel all reminders").
+    final reminderReply = await _reminders.tryHandle(text);
+    if (reminderReply != null) {
+      await _respond(reminderReply);
+      return;
+    }
+
+    // 5. Fall back to Gemini (with memory) via your private server, or
     // straight to Gemini if no server is configured.
     if (_usingServer) {
       try {
