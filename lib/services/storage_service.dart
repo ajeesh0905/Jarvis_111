@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../models/message.dart';
 
 /// Wraps secure storage (for the Gemini API key) and SharedPreferences
 /// (for plain settings) behind one small API.
@@ -25,6 +29,7 @@ class StorageService {
   static const _keyDailySummaryHour = 'daily_summary_hour';
   static const _keyDailySummaryMinute = 'daily_summary_minute';
   static const _keyDailySummaryLastShown = 'daily_summary_last_shown';
+  static const _keyChatHistory = 'jarvis_chat_history';
 
   static const defaultModel = 'gemini-3.6-flash';
   static const availableModels = [
@@ -197,5 +202,36 @@ class StorageService {
   Future<void> setDailySummaryLastShown(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyDailySummaryLastShown, value);
+  }
+
+  // --- Chat history ---
+  // Persists the chat transcript in local phone storage so it survives
+  // app restarts, instead of resetting to a blank chat every launch.
+  // Capped at a fixed number of messages so storage doesn't grow forever.
+
+  static const _maxChatHistoryMessages = 200;
+
+  Future<List<ChatMessage>> getChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_keyChatHistory) ?? [];
+    return raw
+        .map((s) => ChatMessage.fromJson(jsonDecode(s) as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> saveChatHistory(List<ChatMessage> messages) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = messages.length > _maxChatHistoryMessages
+        ? messages.sublist(messages.length - _maxChatHistoryMessages)
+        : messages;
+    await prefs.setStringList(
+      _keyChatHistory,
+      trimmed.map((m) => jsonEncode(m.toJson())).toList(),
+    );
+  }
+
+  Future<void> clearChatHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyChatHistory);
   }
 }
