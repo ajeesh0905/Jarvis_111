@@ -18,7 +18,7 @@
     <!-- Device control features -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <uses-permission android:name="android.permission.SET_ALARM" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <!-- Overspeed alarm: GPS speed monitoring, including while
          backgrounded/screen-off (that's the point of the feature) -->
@@ -32,6 +32,7 @@
     <!-- Reminders: exact scheduled notifications ("remind me...") that
          still fire after a reboot -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
         <!-- Health Connect: read step/heart-rate/sleep data (e.g. synced from
