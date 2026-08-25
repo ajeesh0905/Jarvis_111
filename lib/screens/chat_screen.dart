@@ -48,11 +48,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.add(ChatMessage(
-      sender: Sender.jarvis,
-      text: "I'm online. Ask me anything, or try \"open spotify\", "
-          "\"set an alarm for 7am\", or tap the mic.",
-    ));
+    // Chat history (or the welcome greeting on first launch) is loaded
+    // asynchronously in _loadSettings() below.
     _voice.stateStream.listen((s) {
       if (mounted) setState(() => _voiceState = s);
     });
@@ -67,6 +64,16 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _loadSettings() async {
     final storage = StorageService.instance;
+    final history = await storage.getChatHistory();
+    if (history.isNotEmpty) {
+      _messages.addAll(history);
+    } else {
+      _messages.add(ChatMessage(
+        sender: Sender.jarvis,
+        text: "I'm online. Ask me anything, or try \"open spotify\", "
+            "\"set an alarm for 7am\", or tap the mic.",
+      ));
+    }
     _speakReplies = await storage.getSpeakReplies();
     _usingServer = await storage.isServerConfigured();
     _serverConversationId = await storage.getServerConversationId();
@@ -127,6 +134,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _addSystem(String text) {
     setState(() => _messages.add(ChatMessage(sender: Sender.system, text: text)));
+    _persistMessages();
     _scrollToEnd();
   }
 
@@ -142,12 +150,21 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// Fire-and-forget: saves the current chat history to local phone
+  /// storage (SharedPreferences) so it survives app restarts. Trimmed to
+  /// the most recent messages inside StorageService to avoid unbounded
+  /// growth.
+  void _persistMessages() {
+    StorageService.instance.saveChatHistory(List<ChatMessage>.from(_messages));
+  }
+
   Future<void> _handleUserText(String text) async {
     if (text.trim().isEmpty) return;
     setState(() {
       _messages.add(ChatMessage(sender: Sender.user, text: text));
       _sending = true;
     });
+    _persistMessages();
     _scrollToEnd();
 
     // 1. Try it as an on-device command (open app, set alarm, call, ...).
@@ -222,6 +239,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.add(ChatMessage(sender: Sender.jarvis, text: text));
       _sending = false;
     });
+    _persistMessages();
     _scrollToEnd();
     if (_speakReplies && !isError) {
       await _voice.speak(text);
