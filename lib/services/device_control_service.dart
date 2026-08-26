@@ -37,6 +37,15 @@ class DeviceControlService {
   /// Tries to interpret [text] as a device command. Returns
   /// handled: false if it doesn't look like one of the supported
   /// commands, so the caller can fall back to sending it to Gemini.
+  // A bare time on its own (e.g. "8:45", "8:45am", "9 pm") is almost
+  // always a follow-up to an alarm request. Handle it directly instead of
+  // letting it fall through to Gemini, which has no idea whether an alarm
+  // actually got set and will happily fabricate a confirmation anyway.
+  static final _bareTimePattern = RegExp(
+    r'^\d{1,2}:\d{2}\s*(am|pm)?$|^\d{1,2}\s*(am|pm)$',
+    caseSensitive: false,
+  );
+
   Future<DeviceActionResult> tryHandle(String text) async {
     final t = text.toLowerCase().trim();
 
@@ -46,6 +55,10 @@ class DeviceControlService {
     }
 
     if (t.contains('set') && t.contains('alarm')) {
+      return _setAlarm(t);
+    }
+
+    if (_bareTimePattern.hasMatch(t)) {
       return _setAlarm(t);
     }
 
@@ -137,6 +150,7 @@ class DeviceControlService {
       if (ampm == 'pm' && hour < 12) hour += 12;
       if (ampm == 'am' && hour == 12) hour = 0;
     }
+    final label = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
     try {
       final intent = AndroidIntent(
         action: 'android.intent.action.SET_ALARM',
@@ -147,10 +161,38 @@ class DeviceControlService {
         },
       );
       await intent.launch();
-      final label = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
       return DeviceActionResult(true, 'Setting an alarm for $label.');
     } catch (e) {
-      return DeviceActionResult(true, "I couldn't set that alarm: $e");
+      // Some OEM skins (MIUI in particular) block this intent even with
+      // the right manifest permission unless the clock app is also
+      // allowed to run/pop up in the background. Fall back to just
+      // opening the clock app so the user can finish setting it by hand,
+      // and say why in case it's the OEM-permission issue.
+      try {
+        final fallback = AndroidIntent(
+          action: 'action_main',
+          category: 'android.intent.category.LAUNCHER',
+          package: 'com.android.deskclock',
+          flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
+        );
+        await fallback.launch();
+        return DeviceActionResult(
+          true,
+          "I couldn't set the $label alarm directly (this phone is blocking "
+          "it), so I opened your clock app instead - please add it there. "
+          "If this keeps happening, check Settings > Apps > Jarvis > "
+          "Permissions (and, on Xiaomi/MIUI, Security app > Permissions > "
+          "Autostart / \"display pop-up windows while running in the "
+          "background\") and make sure Jarvis is allowed.",
+        );
+      } catch (_) {
+        return DeviceActionResult(
+          true,
+          "I couldn't set that alarm: $e. On Xiaomi/MIUI phones, check "
+          "Security app > Permissions and make sure Jarvis has Autostart "
+          "and background pop-up permissions enabled.",
+        );
+      }
     }
   }
 
