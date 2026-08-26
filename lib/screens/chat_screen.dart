@@ -14,6 +14,7 @@ import '../widgets/chat_bubble.dart';
 import 'documents_screen.dart';
 import 'health_screen.dart';
 import 'memory_screen.dart';
+import 'reminders_screen.dart';
 import 'settings_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -71,7 +72,9 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.add(ChatMessage(
         sender: Sender.jarvis,
         text: "I'm online. Ask me anything, or try \"open spotify\", "
-            "\"set an alarm for 7am\", or tap the mic.",
+            "\"set an alarm for 7am\", \"remind me every day at 9am to "
+            "take my medicine\", or tap the mic. Tap the bell above for "
+            "quick-add daily reminders (water, medicine, and more).",
       ));
     }
     _speakReplies = await storage.getSpeakReplies();
@@ -167,33 +170,40 @@ class _ChatScreenState extends State<ChatScreen> {
     _persistMessages();
     _scrollToEnd();
 
-    // 1. Try it as an on-device command (open app, set alarm, call, ...).
+    // 1. Try it as a reminder command ("remind me...", "set a daily
+    // reminder...", "list reminders", "cancel reminder #N" / "cancel all
+    // reminders"). This is checked *before* the on-device alarm command
+    // below on purpose: a labelled, persisted reminder (e.g. "set an
+    // alarm to remind me to take medicine every day at 9am") should win
+    // over the device control service's blunt "contains 'set' and
+    // 'alarm'" native-alarm-clock match, since the reminder is what the
+    // user actually asked for — a recurring, on-screen notification with
+    // their custom text, not just the phone's bare stock alarm.
+    final reminderReply = await _reminders.tryHandle(text);
+    if (reminderReply != null) {
+      await _respond(reminderReply);
+      return;
+    }
+
+    // 2. Try it as an on-device command (open app, set alarm, call, ...).
     final deviceResult = await _deviceControl.tryHandle(text);
     if (deviceResult.handled) {
       await _respond(deviceResult.message);
       return;
     }
 
-    // 2. Try it as a smart-home command.
+    // 3. Try it as a smart-home command.
     final smartHomeReply = await _smartHome.tryHandle(text);
     if (smartHomeReply != null) {
       await _respond(smartHomeReply);
       return;
     }
 
-    // 3. Try it as a health/fitness check-in (steps, heart rate, sleep)
+    // 4. Try it as a health/fitness check-in (steps, heart rate, sleep)
     // answered straight from Health Connect - no LLM round trip needed.
-      final healthReply = await _health.tryHandle(text);
+    final healthReply = await _health.tryHandle(text);
     if (healthReply != null) {
       await _respond(healthReply);
-      return;
-    }
-    
-    // 4. Try it as a reminder command ("remind me...", "list reminders",
-    // "cancel reminder #N" / "cancel all reminders").
-    final reminderReply = await _reminders.tryHandle(text);
-    if (reminderReply != null) {
-      await _respond(reminderReply);
       return;
     }
 
@@ -360,6 +370,13 @@ class _ChatScreenState extends State<ChatScreen> {
                         : JarvisColors.textSecondary,
                   ),
                 ),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.notifications_active_outlined),
+            tooltip: 'Daily Reminders',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RemindersScreen()),
               ),
             ),
           IconButton(
