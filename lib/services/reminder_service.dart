@@ -178,6 +178,32 @@ class ReminderService {
     );
   static final _cancelAllPattern = RegExp(r'^cancel all reminders$', caseSensitive: false);
   static final _cancelOnePattern = RegExp(r'^cancel reminder\s*#?(\d+)$', caseSensitive: false);
+  static final _everyIntervalPattern = RegExp(
+    r'^remind me every\s+(\d+)\s*(minute|minutes|min|mins|hour|hours|hr|hrs)'
+    r'(?:\s+between\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s+and\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?'
+    r'\s+to\s+(.+)$',
+    caseSensitive: false,
+  );
+
+  /// Like [_parseClockTime] but returns minutes-since-midnight instead of
+  /// a concrete [DateTime], for building a repeating schedule across a
+  /// time-of-day range (e.g. water reminders every 2 hours).
+  int? _parseClockMinuteOfDay(String hourStr, String? minuteStr, String? ampm) {
+    var hour = int.tryParse(hourStr);
+    if (hour == null || hour < 0 || hour > 23) return null;
+    final minute = minuteStr != null ? int.tryParse(minuteStr) ?? 0 : 0;
+    if (minute < 0 || minute > 59) return null;
+    if (ampm != null) {
+      final isPm = ampm.toLowerCase() == 'pm';
+      if (hour == 12) {
+        hour = isPm ? 12 : 0;
+      } else if (isPm) {
+        hour += 12;
+      }
+    }
+    if (hour > 23) return null;
+    return hour * 60 + minute;
+  }
 
   DateTime? _parseClockTime(String hourStr, String? minuteStr, String? ampm) {
     var hour = int.tryParse(hourStr);
@@ -232,6 +258,58 @@ class ReminderService {
       final label = dailyMatch.group(4)!.trim();
       await _schedule(label: label, when: when, recurringDaily: true);
       return "Noted. I'll remind you every day at ${_formatTime(when)} to $label.";
+    }
+
+    // Repeating reminders through the day, e.g. "remind me every 2 hours
+    // to drink water" or "remind me every 2 hours between 8am and 10pm to
+    // drink water" - handy for water/medicine and other daily-needs
+    // reminders that aren't just once a day. Schedules one daily-recurring
+    // reminder per time slot (each independently listable/cancellable).
+    final intervalMatch = _everyIntervalPattern.firstMatch(trimmed);
+    if (intervalMatch != null) {
+      final amount = int.tryParse(intervalMatch.group(1)!) ?? 0;
+      final unit = intervalMatch.group(2)!.toLowerCase();
+      final intervalMinutes = unit.startsWith('h') ? amount * 60 : amount;
+      if (intervalMinutes <= 0) {
+        return "That interval doesn't make sense - try \"remind me every 2 hours to drink water\".";
+      }
+
+      int startMinute;
+      int endMinute;
+      if (intervalMatch.group(3) != null) {
+        final start = _parseClockMinuteOfDay(intervalMatch.group(3)!, intervalMatch.group(4), intervalMatch.group(5));
+        final end = _parseClockMinuteOfDay(intervalMatch.group(6)!, intervalMatch.group(7), intervalMatch.group(8));
+        if (start == null || end == null || end <= start) {
+          return "I didn't catch that time range - try \"remind me every 2 hours between 8am and 10pm to drink water\".";
+        }
+        startMinute = start;
+        endMinute = end;
+      } else {
+        startMinute = 8 * 60; // default 8:00 AM
+        endMinute = 22 * 60; // default 10:00 PM
+      }
+
+      final label = intervalMatch.group(9)!.trim();
+      final slots = <int>[];
+      for (var m = startMinute; m <= endMinute; m += intervalMinutes) {
+        slots.add(m);
+      }
+      if (slots.length > 20) {
+        return "That's ${slots.length} reminders a day - try a longer interval or a narrower time range.";
+      }
+
+      final now = DateTime.now();
+      final scheduled = <DateTime>[];
+      for (final minuteOfDay in slots) {
+        final hour = minuteOfDay ~/ 60;
+        final minute = minuteOfDay % 60;
+        var when = DateTime(now.year, now.month, now.day, hour, minute);
+        if (when.isBefore(now)) when = when.add(const Duration(days: 1));
+        await _schedule(label: label, when: when, recurringDaily: true);
+        scheduled.add(when);
+      }
+      final timesLabel = scheduled.map(_formatTime).join(', ');
+      return "Noted. I'll remind you every day at $timesLabel to $label.";
     }
 
     final atMatch = _atPattern.firstMatch(trimmed);
