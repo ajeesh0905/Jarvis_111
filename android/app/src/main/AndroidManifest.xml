@@ -20,6 +20,10 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
+    <!-- Photo attachment: take a photo to send to Jarvis -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
     <!-- Overspeed alarm: GPS speed monitoring, including while
          backgrounded/screen-off (that's the point of the feature) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
