@@ -26,6 +26,9 @@ class GeminiService {
   Future<String> send({
     required String userMessage,
     required List<GeminiTurn> history,
+    List<String> memoryFacts = const [],
+    String? imageBase64,
+    String? imageMimeType,
   }) async {
     final apiKey = await StorageService.instance.getApiKey();
     if (apiKey == null || apiKey.isEmpty) {
@@ -34,7 +37,25 @@ class GeminiService {
       );
     }
     final model = await StorageService.instance.getModel();
-    final systemPrompt = await StorageService.instance.getSystemPrompt();
+    var systemPrompt = await StorageService.instance.getSystemPrompt();
+    if (memoryFacts.isNotEmpty) {
+      final factLines = memoryFacts.map((f) => '- $f').join('\n');
+      systemPrompt = '$systemPrompt\n\nPermanent facts you have been told '
+          'to remember about this user (always true - use them even if the '
+          'conversation history above doesn\'t mention them):\n$factLines';
+    }
+
+    final userParts = <Map<String, dynamic>>[
+      {'text': userMessage},
+    ];
+    if (imageBase64 != null && imageMimeType != null) {
+      userParts.add({
+        'inline_data': {
+          'mime_type': imageMimeType,
+          'data': imageBase64,
+        },
+      });
+    }
 
     final contents = [
       ...history.map(
@@ -47,9 +68,7 @@ class GeminiService {
       ),
       {
         'role': 'user',
-        'parts': [
-          {'text': userMessage},
-        ],
+        'parts': userParts,
       },
     ];
 
