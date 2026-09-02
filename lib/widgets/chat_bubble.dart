@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../theme.dart';
@@ -56,9 +58,37 @@ class ChatBubble extends StatelessWidget {
                         ? null
                         : Border.all(color: JarvisColors.accentDim.withValues(alpha: 0.35)),
                   ),
-                  child: Text(
-                    message.text,
-                    style: const TextStyle(fontSize: 15, height: 1.35),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.imagePath != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(message.imagePath!),
+                            width: 220,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 220,
+                              height: 140,
+                              alignment: Alignment.center,
+                              color: JarvisColors.surfaceAlt,
+                              child: const Icon(
+                                Icons.broken_image_outlined,
+                                color: JarvisColors.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (message.imagePath != null && message.text.isNotEmpty)
+                        const SizedBox(height: 8),
+                      if (message.text.isNotEmpty)
+                        Text(
+                          message.text,
+                          style: const TextStyle(fontSize: 15, height: 1.35),
+                        ),
+                    ],
                   ),
                 ),
                 Padding(
