@@ -1,9 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/message.dart';
 import '../services/gemini_service.dart';
 import '../services/device_control_service.dart';
 import '../services/health_service.dart';
 import '../services/jarvis_server_service.dart';
+import '../services/memory_service.dart';
 import '../services/overspeed_service.dart';
 import '../services/reminder_service.dart';
 import '../services/smart_home_service.dart';
@@ -13,7 +19,7 @@ import '../theme.dart';
 import '../widgets/chat_bubble.dart';
 import 'documents_screen.dart';
 import 'health_screen.dart';
-import 'memory_screen.dart';
+import 'local_memory_screen.dart';
 import 'reminders_screen.dart';
 import 'settings_screen.dart';
 
@@ -37,6 +43,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final SmartHomeService _smartHome = NoOpSmartHomeService();
     final _health = HealthService.instance;
   final _reminders = ReminderService.instance;
+  final _memory = MemoryService.instance;
+  final _imagePicker = ImagePicker();
 
   bool _sending = false;
   bool _speakReplies = true;
@@ -170,7 +178,17 @@ class _ChatScreenState extends State<ChatScreen> {
     _persistMessages();
     _scrollToEnd();
 
-    // 1. Try it as a reminder command ("remind me...", "set a daily
+    // 1. Try it as a memory command ("remember ...", "what do you
+    // remember about me", "forget ..."). Checked first since these are
+    // explicit, unambiguous commands with no overlap with the other
+    // on-device handlers below.
+    final memoryReply = await _memory.tryHandle(text);
+    if (memoryReply != null) {
+      await _respond(memoryReply);
+      return;
+    }
+
+    // 2. Try it as a reminder command ("remind me...", "set a daily
     // reminder...", "list reminders", "cancel reminder #N" / "cancel all
     // reminders"). This is checked *before* the on-device alarm command
     // below on purpose: a labelled, persisted reminder (e.g. "set an
@@ -185,21 +203,21 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // 2. Try it as an on-device command (open app, set alarm, call, ...).
+    // 3. Try it as an on-device command (open app, set alarm, call, ...).
     final deviceResult = await _deviceControl.tryHandle(text);
     if (deviceResult.handled) {
       await _respond(deviceResult.message);
       return;
     }
 
-    // 3. Try it as a smart-home command.
+    // 4. Try it as a smart-home command.
     final smartHomeReply = await _smartHome.tryHandle(text);
     if (smartHomeReply != null) {
       await _respond(smartHomeReply);
       return;
     }
 
-    // 4. Try it as a health/fitness check-in (steps, heart rate, sleep)
+    // 5. Try it as a health/fitness check-in (steps, heart rate, sleep)
     // answered straight from Health Connect - no LLM round trip needed.
     final healthReply = await _health.tryHandle(text);
     if (healthReply != null) {
@@ -207,7 +225,7 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    // 5. Fall back to Gemini (with memory) via your private server, or
+    // 6. Fall back to Gemini (with memory) via your private server, or
     // straight to Gemini if no server is configured.
     if (_usingServer) {
       try {
@@ -233,14 +251,111 @@ class _ChatScreenState extends State<ChatScreen> {
       final history = priorTurns
           .map((m) => GeminiTurn(m.sender == Sender.user ? 'user' : 'model', m.text))
           .toList();
-      // Keep only the last ~10 turns so requests stay small.
+      // Keep only the last ~10 turns so requests stay small. Long-term
+      // facts don't depend on this window — they're pulled from
+      // MemoryService and sent on every request instead (see below).
       final trimmedHistory = history.length > 10 ? history.sublist(history.length - 10) : history;
-      final reply = await _gemini.send(userMessage: text, history: trimmedHistory);
+      final facts = await _memory.listFacts();
+      final reply = await _gemini.send(
+        userMessage: text,
+        history: trimmedHistory,
+        memoryFacts: facts,
+      );
       await _respond(reply);
     } on GeminiException catch (e) {
       await _respond(e.toString(), isError: true);
     } catch (e) {
       await _respond('Something went wrong: $e', isError: true);
+    }
+  }
+
+  /// Lets the user attach a photo (camera or gallery), shows it as a chat
+  /// bubble, and sends it straight to Gemini (with vision support) for a
+  /// description/answer — bypassing the on-device command layers above,
+  /// since none of them make sense for an image. Works independently of
+  /// the private-server chat path; it always talks to Gemini directly.
+  Future<void> _pickAndSendImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: JarvisColors.surface,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: JarvisColors.accent),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: JarvisColors.accent),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    XFile? picked;
+    try {
+      picked = await _imagePicker.pickImage(source: source, maxWidth: 1600, imageQuality: 85);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't open the camera/gallery: $e")),
+        );
+      }
+      return;
+    }
+    if (picked == null) return;
+
+    // Copy into app storage so the path stays valid across restarts — the
+    // picker's own path can live in a cache dir that gets cleared.
+    final dir = await getApplicationDocumentsDirectory();
+    final imagesDir = Directory('${dir.path}/jarvis_images');
+    if (!await imagesDir.exists()) {
+      await imagesDir.create(recursive: true);
+    }
+    final savedPath = '${imagesDir.path}/${DateTime.now().microsecondsSinceEpoch}.jpg';
+    await File(picked.path).copy(savedPath);
+
+    final caption = _inputController.text.trim();
+    _inputController.clear();
+
+    setState(() {
+      _messages.add(ChatMessage(
+        sender: Sender.user,
+        text: caption,
+        imagePath: savedPath,
+      ));
+      _sending = true;
+    });
+    _persistMessages();
+    _scrollToEnd();
+
+    try {
+      final bytes = await File(savedPath).readAsBytes();
+      final imageBase64 = base64Encode(bytes);
+      final relevant = _messages.where((m) => m.sender != Sender.system).toList();
+      final priorTurns = relevant.length > 1 ? relevant.sublist(0, relevant.length - 1) : <ChatMessage>[];
+      final history = priorTurns
+          .map((m) => GeminiTurn(m.sender == Sender.user ? 'user' : 'model', m.text))
+          .toList();
+      final trimmedHistory = history.length > 10 ? history.sublist(history.length - 10) : history;
+      final facts = await _memory.listFacts();
+      final reply = await _gemini.send(
+        userMessage: caption.isEmpty ? 'Describe this photo.' : caption,
+        history: trimmedHistory,
+        memoryFacts: facts,
+        imageBase64: imageBase64,
+        imageMimeType: 'image/jpeg',
+      );
+      await _respond(reply);
+    } on GeminiException catch (e) {
+      await _respond(e.toString(), isError: true);
+    } catch (e) {
+      await _respond('Something went wrong reading that photo: $e', isError: true);
     }
   }
 
@@ -389,7 +504,9 @@ class _ChatScreenState extends State<ChatScreen> {
           IconButton(
             icon: const Icon(Icons.psychology_outlined),
             tooltip: 'Memory',
-            onPressed: () => _openServerScreen(const MemoryScreen()),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LocalMemoryScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
@@ -440,7 +557,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.attach_file, color: JarvisColors.textSecondary),
+                    tooltip: 'Attach photo',
+                    onPressed: _pickAndSendImage,
+                  ),
+                  const SizedBox(width: 4),
                   _MicButton(
                     active: _voiceState == VoiceState.listening || _voiceState == VoiceState.wakeListening,
                     onPressed: _onMicPressed,
