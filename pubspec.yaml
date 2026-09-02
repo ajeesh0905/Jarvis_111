@@ -44,6 +44,11 @@ dependencies:
   # Reminders: schedule real on-device notifications ("remind me...")
   timezone: ^0.9.4
 
+  # Photo attachment: pick from camera/gallery, and locate app storage to
+  # save picked photos so they survive app restarts
+  image_picker: ^1.1.2
+  path_provider: ^2.1.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
