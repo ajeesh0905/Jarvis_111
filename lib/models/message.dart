@@ -4,11 +4,13 @@ class ChatMessage {
   final String text;
   final Sender sender;
   final DateTime time;
+  final String? imagePath;
 
   ChatMessage({
     required this.text,
     required this.sender,
     DateTime? time,
+    this.imagePath,
   }) : time = time ?? DateTime.now();
 
   /// Two-digit-padded HH:MM for the chat bubble timestamp.
@@ -26,11 +28,13 @@ class ChatMessage {
     'text': text,
     'sender': sender.name,
     'time': time.toIso8601String(),
+    if (imagePath != null) 'imagePath': imagePath,
   };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
     text: json['text'] as String,
     sender: Sender.values.byName(json['sender'] as String),
     time: DateTime.parse(json['time'] as String),
+    imagePath: json['imagePath'] as String?,
   );
 }
